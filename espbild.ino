@@ -18,22 +18,15 @@
 #define FRAMES_PER_SECOND  30
 
 CRGB leds[NUM_LEDS];
+CRGB screen[NUM_LEDS];
 ESP8266WebServer server(80);
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println("Booting");
   WiFi.mode(WIFI_STA);
   WiFi.begin("TSQ", "ficken9000!#");
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-//    Serial.println("Connection Failed! Rebooting...");
+  while (WiFi.waitForConnectResult() != WL_CONNECTED)
     delay(5000);
-//    ESP.restart();
-  }
-  IPAddress ip(192,168,178,66);   
-  IPAddress gateway(192,168,178,1);   
-  IPAddress subnet(255,255,255,0);   
-  WiFi.config(ip, gateway, subnet);  
+  WiFi.config(IPAddress(192,168,178,66), IPAddress(192,168,178,1), IPAddress(255,255,255,0));  
 
   ArduinoOTA.onStart([]() {
     String type;
@@ -42,33 +35,18 @@ void setup() {
     } else { // U_SPIFFS
       type = "filesystem";
     }
-    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-    Serial.println("Start updating " + type);
   });
   ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) {Serial.println("Auth Failed");
-    } else if (error == OTA_BEGIN_ERROR) {Serial.println("Begin Failed");
-    } else if (error == OTA_CONNECT_ERROR) {Serial.println("Connect Failed");
-    } else if (error == OTA_RECEIVE_ERROR) {Serial.println("Receive Failed");
-    } else if (error == OTA_END_ERROR) {Serial.println("End Failed");
-    }
   });
   ArduinoOTA.begin();
-  Serial.println("Ready");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
 
   server.on("/", handleRoot);
   server.begin();
 
-//  delay(3000); // 3 second delay for recovery
   FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(BRIGHTNESS);
 }
@@ -77,15 +55,27 @@ void handleRoot() {
   server.send(200, "text/plain", "XMas ESP Bild");
 }
 
+void drawTree(uint8_t pos, uint8_t darken){
+  
+}
+
 int pos=0;
 void calcPicture(){
-  if (leds[pos]==CRGB(255,255,255))
-    leds[pos]=CRGB::Blue;
+  if (screen[pos]==CRGB(255,255,255))
+    screen[pos]=CRGB::Blue;
   else
-    leds[pos]=CRGB::White;
+    screen[pos]=CRGB::White;
   pos++;
   if (pos==600)
     pos=0;
+}
+
+void transformPicture(){
+  for (uint8_t y=0;y<20;y+=2)
+    for (uint8_t x=0;x<30;x++){
+      leds[y*30+x]=screen[y*30+x];
+      leds[y*30+30+x]=screen[y*30+59-x];
+    }
 }
 
 void loop() {
@@ -94,5 +84,6 @@ void loop() {
   server.handleClient();
 
   calcPicture();
+  transformPicture();
   FastLED.show();  
 }
